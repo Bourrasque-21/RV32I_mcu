@@ -2,7 +2,7 @@
 
 ## Overview
 
-SystemVerilog로 구현한 멀티사이클 RV32I CPU 기반 FPGA MCU 설계임. CPU 코어, 명령어 ROM, 4 KB(4096 bytes) 데이터 RAM, APB 버스 및 GPIO, UART, FND 주변장치를 하나의 SoC 형태로 구성함.
+SystemVerilog로 구현한 멀티사이클 RV32I CPU 기반 MCU 설계. CPU 코어, 명령어 ROM, 4 KB(4096 bytes) 데이터 RAM, APB 버스 및 GPIO, UART, FND 주변장치를 하나의 SoC 형태로 구성함.
 
 Digilent Basys 3 보드를 대상으로 하며, 100 MHz 시스템 클럭과 온보드 스위치, LED, 7-Segment Display 및 USB-UART 인터페이스를 사용함.
 
