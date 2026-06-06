@@ -211,6 +211,36 @@ CPU가 `INT` 상태에 진입하면 `interrupt_clear`가 활성화되어 `rx_val
 
 인터럽트 서비스 루틴은 `0x0000_0040`부터 실행됨. UART 수신 데이터는 `UART_RXDATA`에서 읽으며, 서비스 처리 완료 후 `x26`에 저장된 주소를 PC에 전달하여 인터럽트 발생 이전의 실행 위치로 복귀함.
 
+## Functional Simulation and FPGA Validation
+
+검증용 프로그램을 기계어로 변환하여 명령어 ROM에 적재한 후 Vivado Functional Simulation 및 Basys 3 보드 테스트를 수행함.
+
+| 테스트 항목 | 검증 환경 | 확인 내용 |
+| --- | --- | --- |
+| 0~10 누적 합산 | Vivado Functional Simulation | 0부터 10까지의 합산 결과 `55` 확인 |
+| UART Echo Back | Basys 3 | UART 수신 데이터 재전송 및 FND ASCII 표시 확인 |
+| UART Interrupt | Basys 3 | LED 순환 중 인터럽트 진입, ISR 실행 및 기존 위치 복귀 확인 |
+
+### Sum Calculation
+
+0부터 10까지의 값을 순차적으로 누적하는 프로그램을 명령어 ROM에 적재함. Vivado Functional Simulation 파형에서 최종 합산 결과가 10진수 `55`로 계산되는 것을 확인함. 해당 테스트는 시뮬레이션 환경에서만 수행함.
+
+### UART Echo Back
+
+PC에서 UART로 입력한 데이터를 MCU가 수신한 후 동일한 데이터를 다시 송신하는 echo back 동작을 확인함. 수신 데이터의 ASCII 코드는 FND에 16진수로 표시함.
+
+최근 두 개의 수신 데이터를 4자리 FND에 표시하며, 신규 데이터 입력 시 기존 값이 오른쪽에서 왼쪽으로 이동함. `A`, `B`, `C`를 순서대로 입력한 경우 ASCII 값은 다음과 같이 표시됨.
+
+```text
+0041 -> 4142 -> 4243
+```
+
+### UART Interrupt
+
+메인 프로그램에서 보드 LED가 순차적으로 이동하는 반복 동작을 수행함. UART 데이터 수신 시 CPU가 인터럽트 벡터 `0x0000_0040`으로 분기하여 ISR을 실행함.
+
+ISR에서는 LED 점등 동작을 3회 수행함. ISR 완료 후 `x26`에 저장된 복귀 주소를 이용하여 인터럽트 발생 이전의 LED 순환 위치로 복귀하고, 기존 반복 동작을 계속 수행하는 것을 확인함.
+
 ## Basys 3 Pin Mapping
 
 | FPGA 포트 | Basys 3 장치 |
