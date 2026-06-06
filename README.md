@@ -211,7 +211,7 @@ CPU가 `INT` 상태에 진입하면 `interrupt_clear`가 활성화되어 `rx_val
 
 인터럽트 서비스 루틴은 `0x0000_0040`부터 실행됨. UART 수신 데이터는 `UART_RXDATA`에서 읽으며, 서비스 처리 완료 후 `x26`에 저장된 주소를 PC에 전달하여 인터럽트 발생 이전의 실행 위치로 복귀함.
 
-## Functional Simulation and FPGA Validation
+## Functional Simulation and Board Test
 
 검증용 프로그램을 기계어로 변환하여 명령어 ROM에 적재한 후 Vivado Functional Simulation 및 Basys 3 보드 테스트를 수행함.
 
