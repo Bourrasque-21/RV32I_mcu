@@ -93,7 +93,7 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 
 APB는 `SETUP`과 `ACCESS` 단계로 구성된 저속 주변장치용 레지스터 버스임. 본 설계에서는 GPO, GPI, GPIO, FND, UART와 같이 소수의 제어 및 상태 레지스터를 갖는 주변장치를 APB에 연결함.
 
-데이터 RAM은 CPU의 load/store 명령어에 의해 반복적으로 접근되는 저장공간이므로 APB 변환 단계를 거치지 않고 직접 연결함. 해당 구조는 다음 특성을 가짐.
+데이터 RAM은 CPU의 load/store 명령어에 의해 반복적으로 접근되는 저장공간이므로 APB 변환 단계를 거치지 않고 직접 연결함. 이를 통해 APB의 `SETUP` 및 `ACCESS` 단계에서 발생하는 접근 지연을 줄임. 해당 구조는 다음 특성을 가짐.
 
 - APB의 `SETUP` 및 `ACCESS` 상태를 거치지 않고 RAM 요청을 직접 전달함
 - CPU의 `funct3`를 이용한 byte, halfword, word 접근을 RAM 인터페이스에서 직접 처리함
