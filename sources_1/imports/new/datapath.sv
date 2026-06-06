@@ -235,13 +235,6 @@ module register_file (
 
     assign RD1 = (RA1 == 5'd0) ? 32'd0 : reg_file[RA1];
     assign RD2 = (RA2 == 5'd0) ? 32'd0 : reg_file[RA2];
-    initial begin
-        reg_file[27] = 32'h1000_0000;
-        reg_file[28] = 32'h2000_4000;
-        reg_file[29] = 32'h2000_4004;
-        reg_file[30] = 32'h2000_4008;
-        reg_file[31] = 32'h2000_400c;
-    end
     always_ff @(posedge clk) begin
         if (!rst && rf_we && (WA != 5'd0)) begin
             reg_file[WA] <= Wdata;
