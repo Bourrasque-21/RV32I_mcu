@@ -159,7 +159,6 @@ APB는 `SETUP`과 `ACCESS` 단계로 구성된 저속 주변장치용 레지스�
 | `2'b00` | 9,600 bps |
 | `2'b01` | 19,200 bps |
 | `2'b10` | 115,200 bps |
-| `2'b11` | 9,600 bps |
 
 UART는 100 MHz 입력 클럭을 기준으로 16배 oversampling 방식을 사용함. 프레임 형식은 8 data bits, no parity, 1 stop bit(8N1)로 구성됨.
 
@@ -211,18 +210,6 @@ CPU가 `INT` 상태에 진입하면 `interrupt_clear`가 활성화되어 `rx_val
 ### 5. Program Return
 
 인터럽트 서비스 루틴은 `0x0000_0040`부터 실행됨. UART 수신 데이터는 `UART_RXDATA`에서 읽으며, 서비스 처리 완료 후 `x26`에 저장된 주소를 PC에 전달하여 인터럽트 발생 이전의 실행 위치로 복귀함.
-
-## Register Initialization
-
-메모리 맵 접근을 위해 일부 범용 레지스터를 다음 값으로 초기화함.
-
-| 레지스터 | 초기값 | 용도 |
-| --- | --- | --- |
-| `x27` | `0x1000_0000` | 데이터 RAM base |
-| `x28` | `0x2000_4000` | UART baud register |
-| `x29` | `0x2000_4004` | UART status register |
-| `x30` | `0x2000_4008` | UART TX data register |
-| `x31` | `0x2000_400C` | UART RX data register |
 
 ## Basys 3 Pin Mapping
 
