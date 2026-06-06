@@ -1,4 +1,4 @@
-# RV32I MCU FPGA 설계 기술 문서
+# RISC-V RV32I MCU
 
 ## Overview
 
