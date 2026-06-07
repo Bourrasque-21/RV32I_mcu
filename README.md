@@ -12,7 +12,7 @@ Digilent Basys 3 보드를 대상으로 하며, 100 MHz 시스템 클럭과 온�
 - `IF -> ID -> EX -> MEM -> WB` 상태 기반 제어
 - 32개 범용 레지스터와 `x0` 하드와이어드 제로
 - 64-word 명령어 ROM
-- 4 KB(4096 bytes) 데이터 BRAM
+- 4 KB(4096 bytes) 데이터 LUT RAM
 - APB 기반 메모리 맵 주변장치
 - 8비트 GPO 및 8비트 GPI
 - 16비트 양방향 GPIO
@@ -56,7 +56,7 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 | 주소 영역 | 크기/간격 | 장치 |
 | --- | --- | --- |
 | `0x0000_0000` | 256 B | 명령어 ROM |
-| `0x1000_0000` | 4 KB (4096 B) | 데이터 BRAM |
+| `0x1000_0000` | 4 KB (4096 B) | 데이터 LUT RAM |
 | `0x2000_0000` | `0x1000` 간격 | GPO |
 | `0x2000_1000` | `0x1000` 간격 | GPI |
 | `0x2000_2000` | `0x1000` 간격 | GPIO |
@@ -75,7 +75,7 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 2. `bus_router`에서 `bus_addr[31:28] == 4'h1` 조건을 검사함.
 3. 조건이 참이면 CPU 요청을 `ram_rreq` 또는 `ram_wreq`로 변환하여 `data_dmem`에 전달함.
 4. `data_dmem`에서 `funct3` 값에 따라 byte, halfword, word 단위의 읽기 및 쓰기를 처리함.
-5. BRAM은 `addr[11:2]`를 이용하여 1024개의 32비트 word 중 하나를 선택함.
+5. Data RAM은 `addr[11:2]`를 이용하여 1024개의 32비트 word 중 하나를 선택함.
 6. `ram_rdata`와 `ram_ready`가 `bus_router`를 통해 CPU의 `bus_rdata`와 `bus_ready`로 반환됨.
 
 | CPU 명령어 | `funct3` | RAM 처리 |
@@ -304,6 +304,5 @@ ROM 깊이는 64 word이며, 최대 256 byte의 프로그램을 저장할 수 �
 ## Development Environment
 
 - HDL: SystemVerilog
-- FPGA board: Digilent Basys 3
-- FPGA: Xilinx Artix-7 XC7A35T
+- FPGA board: Digilent Basys 3 (Xilinx Artix-7 XC7A35T)
 - Tool: AMD/Xilinx Vivado
