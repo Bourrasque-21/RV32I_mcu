@@ -13,7 +13,7 @@ module data_dmem (
 );
 
     logic [31:0] w_wdata, w_drdata;
-    bram U_BRAM (
+    data_ram U_DATA_RAM (
         .clk     (clk),
         .addr    (addr),
         .wdata   (w_wdata),
@@ -80,7 +80,7 @@ module data_dmem (
 
 endmodule
 
-module bram (
+module data_ram (
     input               clk,
     input        [31:0] addr,
     input        [31:0] wdata,
