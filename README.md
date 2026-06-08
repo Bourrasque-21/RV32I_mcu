@@ -9,7 +9,7 @@ Digilent Basys 3 보드를 대상으로 하며, 100 MHz 시스템 클럭과 온�
 ## Specifications
 
 - 32비트 RV32I 멀티사이클 CPU
-- `IF -> ID -> EX -> MEM -> WB` 상태 기반 제어
+- `IF`, `ID`, `EX`, `MEM`, `WB`, `INT` 상태 기반 제어
 - 32개 범용 레지스터와 `x0` 하드와이어드 제로
 - 64-word 명령어 ROM
 - 4 KB(4096 bytes) 데이터 LUT RAM
@@ -18,7 +18,7 @@ Digilent Basys 3 보드를 대상으로 하며, 100 MHz 시스템 클럭과 온�
 - 16비트 양방향 GPIO
 - 4자리 7-Segment Display 제어기
 - UART 송수신 및 RX 인터럽트
-- Basys 3 보드용 XDC 제약 파일
+- Basys 3 보드용 XDC 파일
 
 ## System Architecture
 
@@ -32,12 +32,12 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 
 | 상태 | 동작 |
 | --- | --- |
-| `IF` | 명령어 인출, PC 및 이전 PC 저장 |
+| `IF` | 명령어 인출, 현재 PC 저장 및 다음 PC 갱신 |
 | `ID` | 레지스터 피연산자와 즉시값 저장 |
-| `EX` | ALU 연산, 분기 및 유효 주소 계산 |
-| `MEM` | 데이터 메모리 또는 APB 접근 |
-| `WB` | 연산/로드 결과를 레지스터에 기록 |
-| `INT` | UART 인터럽트 처리 및 벡터 주소로 이동 |
+| `EX` | ALU 연산, 분기·점프 처리 및 Load/Store 유효 주소 계산 |
+| `MEM` | Load/Store 명령의 데이터 RAM 또는 APB 접근 |
+| `WB` | ALU, Load, Immediate 및 Jump 결과를 레지스터에 기록 |
+| `INT` | 복귀 주소 저장, 인터럽트 요청 해제 및 벡터 주소로 이동 |
 
 ### Supported Instructions
 
@@ -53,17 +53,17 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 
 ## Memory Map
 
-| 주소 영역 | 크기/간격 | 장치 |
+| 기준 주소 | 크기 | 장치 |
 | --- | --- | --- |
 | `0x0000_0000` | 256 B | 명령어 ROM |
-| `0x1000_0000` | 4 KB (4096 B) | 데이터 LUT RAM |
-| `0x2000_0000` | `0x1000` 간격 | GPO |
-| `0x2000_1000` | `0x1000` 간격 | GPI |
-| `0x2000_2000` | `0x1000` 간격 | GPIO |
-| `0x2000_3000` | `0x1000` 간격 | FND |
-| `0x2000_4000` | `0x1000` 간격 | UART |
+| `0x1000_0000` | 4 KB | 데이터 LUT RAM |
+| `0x2000_0000` | - | GPO |
+| `0x2000_1000` | - | GPI |
+| `0x2000_2000` | - | GPIO |
+| `0x2000_3000` | - | FND |
+| `0x2000_4000` | - | UART |
 
-데이터 RAM은 `addr[11:2]`를 32비트 word 인덱스로 사용함. 하위 2비트 `addr[1:0]`은 byte와 halfword 위치를 선택하는 데 사용되며, 데이터 RAM 주소 범위는 `0x1000_0000`부터 `0x1000_0FFF`까지임.
+데이터 RAM은 `addr[11:2]`를 32비트 word 인덱스로 사용함. 하위 2비트 `addr[1:0]`은 byte와 halfword 위치를 선택하는 데 사용되며, 소프트웨어에서는 `0x1000_0000`부터 `0x1000_0FFF`까지의 주소 범위를 사용함.
 
 ### RAM Access Architecture
 
@@ -87,7 +87,7 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 | `SH` | `001` | 선택된 16비트 영역 쓰기 |
 | `SW` | `010` | 32비트 word 쓰기 |
 
-`data_dmem`의 `ready`는 `mem_read | mem_write`로 생성됨. RAM 요청이 활성화된 경우 해당 접근의 완료 신호가 즉시 CPU 버스 경로로 반환됨.
+`data_dmem`의 `ready`는 `mem_read | mem_write`로 생성됨. RAM 요청이 활성화되면 별도의 wait state 없이 완료 신호가 CPU 버스 경로로 반환됨.
 
 #### Direct RAM Connection Rationale
 
@@ -136,7 +136,7 @@ APB는 `SETUP`과 `ACCESS` 단계로 구성된 저속 주변장치용 레지스�
 
 | Offset | 이름 | 접근 | 설명 |
 | --- | --- | --- | --- |
-| `0x000` | `FND_CTL` | R/W | 16비트 FND 설정 레지스터 |
+| `0x000` | `FND_CTL` | R/W | Reserved (미사용) |
 | `0x004` | `FND_ODATA` | R/W | 표시할 16비트 hexadecimal 값 |
 
 `FND_ODATA`를 4비트 단위의 네 영역으로 분할하며, 각 4비트 값을 한 자리의 16진수 숫자로 표시함.
@@ -162,9 +162,9 @@ APB는 `SETUP`과 `ACCESS` 단계로 구성된 저속 주변장치용 레지스�
 
 UART는 100 MHz 입력 클럭을 기준으로 16배 oversampling 방식을 사용함. 프레임 형식은 8 data bits, no parity, 1 stop bit(8N1)로 구성됨.
 
-## Interrupt Architecture
+## Custom UART Interrupt Architecture
 
-인터럽트는 UART RX 수신 완료 신호를 기반으로 동작함. UART 수신 데이터는 `rx_data_reg`에 저장되며, 수신 데이터가 유효한 동안 `rx_valid_reg`가 인터럽트 pending 플래그 역할을 수행함.
+사용자 정의 인터럽트는 UART RX 수신 완료 신호를 기반으로 동작함. UART 수신 데이터는 `rx_data_reg`에 저장되며, `rx_valid_reg`는 수신 완료 후 인터럽트 수락 또는 `UART_RXDATA` Read 전까지 pending 플래그 역할을 수행함.
 
 ### 1. UART Reception and Interrupt Request
 
@@ -209,7 +209,7 @@ CPU가 `INT` 상태에 진입하면 `interrupt_clear`가 활성화되어 `rx_val
 
 ### 5. Program Return
 
-인터럽트 서비스 루틴은 `0x0000_0040`부터 실행됨. UART 수신 데이터는 `UART_RXDATA`에서 읽으며, 서비스 처리 완료 후 `x26`에 저장된 주소를 PC에 전달하여 인터럽트 발생 이전의 실행 위치로 복귀함.
+인터럽트 서비스 루틴은 `0x0000_0040`부터 실행됨. UART 수신 데이터는 `UART_RXDATA`에서 읽으며, 서비스 처리 완료 후 `JALR` 명령으로 `x26`에 저장된 주소로 이동하여 인터럽트 발생 이전의 실행 위치로 복귀함.
 
 ## Functional Simulation and Board Test
 
@@ -247,8 +247,8 @@ ISR에서는 LED 점등 동작을 3회 수행함. ISR 완료 후 `x26`에 저장
 | --- | --- |
 | `clk` | 100 MHz oscillator |
 | `rst` | Center push button |
-| `sw[7:0]` | 상위 8개 슬라이드 스위치 |
-| `led[7:0]` | 상위 8개 LED |
+| `sw[7:0]` | 상위 8개 슬라이드 스위치 (GPI) |
+| `led[7:0]` | 상위 8개 LED (GPO) |
 | `GPIO[7:0]` | 하위 8개 슬라이드 스위치 |
 | `GPIO[15:8]` | 하위 8개 LED |
 | `fnd_digit[3:0]` | 7-Segment digit enable |
@@ -278,10 +278,12 @@ RV32I_mcu/
         ├── gpo_01.sv
         ├── gpi_02.sv
         ├── gpio_03.sv
-        ├── bram.sv
+        ├── data_ram.sv
         ├── uart_top.sv
         └── fifo.sv
 ```
+
+`data_memory.sv`는 초기 CPU 구조에서 사용한 1 KB 데이터 메모리 모듈이며, 현재 `rv32i_mcu` TOP에서는 `data_ram.sv`의 4 KB Data RAM을 사용하므로 설계에 연결되지 않음.
 
 ## Program ROM
 
