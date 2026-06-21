@@ -4,6 +4,8 @@
 
 SystemVerilog로 구현한 멀티사이클 RV32I CPU 기반 MCU 설계. CPU 코어, 명령어 ROM, 4 KB(4096 bytes) 데이터 RAM, APB 버스 및 GPIO, UART, FND 주변장치를 하나의 SoC 형태로 구성함.
 
+기존 single-cycle RV32I CPU 설계를 기반으로 하며, 명령어 실행 과정을 `IF`, `ID`, `EX`, `MEM`, `WB` 단계로 분리한 multi-cycle 구조로 확장함.
+
 Digilent Basys 3 보드를 대상으로 하며, 100 MHz 시스템 클럭과 온보드 스위치, LED, 7-Segment Display 및 USB-UART 인터페이스를 사용함.
 
 ## Specifications
@@ -258,39 +260,57 @@ ISR에서는 LED 점등 동작을 3회 수행함. ISR 완료 후 `x26`에 저장
 ## Directory Structure
 
 ```text
-RV32I_mcu/
-├── constrs_1/
-│   └── imports/FPGA_1/
-│       └── Basys-3-Master.xdc
-└── sources_1/
-    ├── imports/new/
-    │   ├── _define.vh
-    │   ├── rv32I_top.sv
-    │   ├── rv32i_cpu.sv
-    │   ├── datapath.sv
-    │   ├── instruction_mem.sv
-    │   └── data_memory.sv
-    └── new/
-        ├── _riscv_rv32i_rom_data.mem
-        ├── abp_master.sv
-        ├── apb_uart.sv
-        ├── apb_fnd.sv
-        ├── gpo_01.sv
-        ├── gpi_02.sv
-        ├── gpio_03.sv
-        ├── data_ram.sv
-        ├── uart_top.sv
-        └── fifo.sv
+RV32I_MCU/
+├── README.md
+├── rv32i_diagram.png
+├── single_cycle/
+│   ├── constrs_1/
+│   │   └── imports/FPGA_1/
+│   │       └── Basys-3-Master.xdc
+│   └── sources_1/
+│       └── core/
+│           ├── _define.vh
+│           ├── _rv32i_rom_data.mem
+│           ├── rv32I_top.sv
+│           ├── rv32i_cpu.sv
+│           ├── datapath.sv
+│           ├── instruction_mem.sv
+│           └── data_memory.sv
+└── multi_cycle/
+    ├── constrs_1/
+    │   └── imports/FPGA_1/
+    │       └── Basys-3-Master.xdc
+    └── sources_1/
+        ├── imports/new/
+        │   ├── _define.vh
+        │   ├── rv32I_top.sv
+        │   ├── rv32i_cpu.sv
+        │   ├── datapath.sv
+        │   ├── instruction_mem.sv
+        │   └── data_memory.sv
+        └── new/
+            ├── _riscv_rv32i_rom_data.mem
+            ├── abp_master.sv
+            ├── apb_uart.sv
+            ├── apb_fnd.sv
+            ├── gpo_01.sv
+            ├── gpi_02.sv
+            ├── gpio_03.sv
+            ├── data_ram.sv
+            ├── uart_top.sv
+            └── fifo.sv
 ```
 
-`data_memory.sv`는 초기 CPU 구조에서 사용한 1 KB 데이터 메모리 모듈이며, 현재 `rv32i_mcu` TOP에서는 `data_ram.sv`의 4 KB Data RAM을 사용하므로 설계에 연결되지 않음.
+`single_cycle/`은 기반이 된 RV32I single-cycle CPU 설계이며, `multi_cycle/`은 이를 multi-cycle CPU와 APB 기반 주변장치를 포함하는 MCU 구조로 확장한 설계임.
+
+`multi_cycle/sources_1/imports/new/data_memory.sv`는 초기 CPU 구조에서 사용한 1 KB 데이터 메모리 모듈이며, 현재 `rv32i_mcu` TOP에서는 `multi_cycle/sources_1/new/data_ram.sv`의 4 KB Data RAM을 사용하므로 설계에 연결되지 않음.
 
 ## Program ROM
 
 `instruction_mem`에서 다음 파일을 `$readmemh`로 읽어 프로그램을 초기화함.
 
 ```text
-sources_1/new/_riscv_rv32i_rom_data.mem
+multi_cycle/sources_1/new/_riscv_rv32i_rom_data.mem
 ```
 
 메모리 초기화 파일은 한 줄에 하나의 32비트 명령어를 hexadecimal 형식으로 기록함.
