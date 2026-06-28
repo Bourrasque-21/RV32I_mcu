@@ -24,7 +24,7 @@ Digilent Basys 3 보드를 대상으로 하며, 100 MHz 시스템 클럭과 온�
 
 ## System Architecture
 
-![RV32I MCU Block Diagram](riscv.png)
+![RV32I MCU Block Diagram](riscv1.png)
 
 `rv32i_mcu` TOP 모듈에서 명령어 메모리, RV32I CPU, Bus Router, 데이터 RAM, APB Master 및 APB 주변장치를 통합함. 명령어 메모리는 CPU와 직접 연결되며, CPU의 데이터 접근은 Bus Router에서 RAM 경로와 APB 주변장치 경로로 분기됨.
 
