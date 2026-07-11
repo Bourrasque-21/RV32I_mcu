@@ -168,6 +168,8 @@ UART는 100 MHz 입력 클럭을 기준으로 16배 oversampling 방식을 사�
 
 사용자 정의 인터럽트는 UART RX 수신 완료 신호를 기반으로 동작함. UART 수신 데이터는 `rx_data_reg`에 저장되며, `rx_valid_reg`는 수신 완료 후 인터럽트 수락 또는 `UART_RXDATA` Read 전까지 pending 플래그 역할을 수행함.
 
+본 설계의 `interrupt_signal`은 UART RX valid flag 기반의 custom IRQ 역할을 하며, CPU는 이를 감지하면 `0x0000_0040`의 ISR 벡터로 분기함.
+
 ### 1. UART Reception and Interrupt Request
 
 1. `uart_rx` 모듈에서 start bit, 8-bit data, stop bit를 순서대로 수신함.
