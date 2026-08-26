@@ -1,4 +1,6 @@
-# RISC-V RV32I MCU
+<p align="center">
+  <img src="assets/RV32I_MCU_GitHub_Banner.png" width="900" alt="RISC-V RV32I MCU/SoC Design">
+</p>
 
 ## Overview
 
