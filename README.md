@@ -67,7 +67,7 @@ CPU 단독 시뮬레이션에서 동일한 0~10 누적 합산 프로그램을 �
 | 측정 기준 | `reg_file[10] = 55` | `reg_file[10] = 55` |
 | 프로그램 수행시간 | 약 **5.28 μs** | 약 **11.30 μs** |
 
-![누적 합산 프로그램 수행시간 비교: 왼쪽 multi-cycle, 오른쪽 single-cycle](docs/images/cpu_comparison_waveform.png)
+<img src="docs/images/cpu_comparison_waveform.png" alt="누적 합산 프로그램 수행시간 비교: 왼쪽 multi-cycle, 오른쪽 single-cycle" width="480">
 
 *왼쪽: Multi-cycle(커서 11,315 ns) / 오른쪽: Single-cycle(커서 5,285 ns).*
 
