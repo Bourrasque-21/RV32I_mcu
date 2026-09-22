@@ -53,6 +53,39 @@ CPU는 제어부(`control_unit`)와 데이터패스(`datapath`)로 구성됨.
 | Jump | `JAL`, `JALR` |
 | Upper Immediate | `LUI`, `AUIPC` |
 
+## Single-Cycle vs. Multi-Cycle Execution Time
+
+CPU 단독 시뮬레이션에서 동일한 0~10 누적 합산 프로그램을 실행하여 single-cycle과 multi-cycle의 수행시간을 비교함. 측정 기준은 `reg_file[10]`에 결과값 `55`가 저장되는 시점임.
+
+| 비교 항목 | Single-cycle | Multi-cycle |
+| --- | --- | --- |
+| 시뮬레이션 클럭 주파수 | 50 MHz | 100 MHz |
+| 클럭 주기 | 20 ns | 10 ns |
+| 명령어 실행 방식 | 한 명령어를 1사이클에 실행 | 명령어별로 여러 FSM 상태를 순차 실행 |
+| 측정 기준 | `reg_file[10] = 55` | `reg_file[10] = 55` |
+| 프로그램 수행시간 | 약 **5.28 μs** | 약 **11.30 μs** |
+
+![누적 합산 프로그램 수행시간 비교: 왼쪽 multi-cycle, 오른쪽 single-cycle](docs/images/cpu_comparison_waveform.png)
+
+*왼쪽: Multi-cycle(커서 11,315 ns) / 오른쪽: Single-cycle(커서 5,285 ns).*
+
+Single-cycle은 타이밍 분석 결과 약 16 ns 이상의 클럭 주기가 필요하여 20 ns(50 MHz)로 설정하고, multi-cycle은 10 ns(100 MHz)로 설정함. 이 프로그램에서 multi-cycle의 클럭 주파수는 2배였지만 수행시간은 약 **2.14배** 길었음. 명령어당 필요한 사이클 수가 증가하므로, 클럭 주파수 향상이 곧 프로그램 실행시간 단축으로 이어지지는 않음.
+
+```text
+프로그램 실행시간 = 실행 명령어 수 × 평균 CPI × 클럭 주기
+```
+
+Multi-cycle 제어기의 명령어별 실행 경로는 다음과 같음. RAM 접근에 추가 대기가 없고 인터럽트가 발생하지 않는 경우를 기준으로 하며, APB 접근은 `bus_ready`를 기다리는 동안 `MEM` 상태가 연장됨.
+
+| 명령어 종류 | FSM 실행 경로 | 사이클 수 |
+| --- | --- | --- |
+| ALU 연산, LUI/AUIPC, JAL/JALR | `IF → ID → EX → WB` | 4 |
+| RAM Load | `IF → ID → EX → MEM → WB` | 5 |
+| RAM Store | `IF → ID → EX → MEM` | 4 |
+| Branch | `IF → ID → EX` | 3 |
+
+한 명령어의 처리가 끝난 뒤 다음 명령어를 시작하므로, 전체 수행시간은 명령어 구성에 따른 평균 CPI와 클럭 주기에 의해 결정됨.
+
 ## Memory Map
 
 | 기준 주소 | 크기 | 장치 |
@@ -224,10 +257,70 @@ CPU가 `INT` 상태에 진입하면 `interrupt_clear`가 활성화되어 `rx_val
 | 0~10 누적 합산 | Vivado Functional Simulation | 0부터 10까지의 합산 결과 `55` 확인 |
 | UART Echo Back | Basys 3 | UART 수신 데이터 재전송 및 FND ASCII 표시 확인 |
 | UART Interrupt | Basys 3 | LED 순환 중 인터럽트 진입, ISR 실행 및 기존 위치 복귀 확인 |
+| RAM Store / Load | Vivado Functional Simulation | 부분 쓰기, 읽기 크기 선택, 부호 확장 및 zero extension 확인 |
+| UART Baud / APB | Vivado Functional Simulation | Baud 설정별 Echo 및 RXDATA 읽기·TXDATA 쓰기 확인 |
+| UART Interrupt / RAM | Vivado Functional Simulation | 인터럽트 벡터 분기, 수신값 RAM 저장, 메인 프로그램 복귀 확인 |
 
 ### Sum Calculation
 
 0부터 10까지의 값을 순차적으로 누적하는 프로그램을 명령어 ROM에 적재함. Vivado Functional Simulation 파형에서 최종 합산 결과가 10진수 `55`로 계산되는 것을 확인함. 해당 테스트는 시뮬레이션 환경에서만 수행함.
+
+Single-cycle과 multi-cycle의 클럭 조건 및 수행시간은 [Single-Cycle vs. Multi-Cycle Execution Time](#single-cycle-vs-multi-cycle-execution-time)에 정리함.
+
+### RAM Store / Load Waveforms
+
+#### Store: Byte / Halfword / Word
+
+![RAM의 SB, SH, SW 쓰기 동작 파형](docs/images/ram_store_waveform.png)
+
+*RAM base `0x1000_0000`에서 byte, halfword, word 단위로 데이터를 기록하는 파형.*
+
+쓰기 데이터 `0x1234_5678`을 사용하여 `SB`, `SH`, `SW`에 따른 메모리 갱신 범위를 확인함.
+
+| 접근 | 주소 / Offset | 쓰기 완료 후 결과 |
+| --- | --- | --- |
+| `SB` 4회 | RAM base + `0, 1, 2, 3` | 각 byte에 `0x78` 기록 → 첫 word `0x7878_7878` |
+| `SH` 2회 | RAM base + `4, 6` | 각 halfword에 `0x5678` 기록 → 두 번째 word `0x5678_5678` |
+| `SW` 1회 | RAM base + `8` | 세 번째 word `0x1234_5678` |
+
+`SB/SH`는 기존 word에서 선택되지 않은 영역을 유지하고 대상 byte/halfword만 교체함. 파형에서는 `mem_write` 요청과 `ready`, 주소 및 메모리 값의 변화를 함께 확인할 수 있음. 비동기 읽기·동기 쓰기 구조이며, 쓰기는 요청이 활성화된 클럭 상승 에지에서 반영됨.
+
+#### Load: Sign Extension / Zero Extension
+
+![RAM의 LB, LH, LW, LBU, LHU 읽기 및 확장 결과 파형](docs/images/ram_load_waveform.png)
+
+*동일한 메모리 데이터에 대한 signed/unsigned load 결과 비교.*
+
+| 비교 대상 | 읽은 원본 데이터 | Signed Load | Unsigned Load |
+| --- | --- | --- | --- |
+| Byte | `0xF6` | `LB` → `0xFFFF_FFF6` | `LBU` → `0x0000_00F6` |
+| Halfword | `0xE123` | `LH` → `0xFFFF_E123` | `LHU` → `0x0000_E123` |
+| Word | `0x1234_5678` | `LW` → `0x1234_5678` | 동일한 32비트 값을 읽음 |
+
+테스트 메모리는 `0x12F4_F678`, `0xABCD_E123`, `0x1234_5678`로 초기화함. 동일한 메모리 값에 대해 `LB/LH`는 부호 비트를 상위 비트로 확장하고, `LBU/LHU`는 상위 비트를 0으로 채우는 차이를 확인함.
+
+### UART Baud Rate / APB Waveforms
+
+![UART baud rate 선택별 RX와 TX Echo 파형](docs/images/uart_echo_waveform.png)
+
+*Baud rate 설정에 따른 UART 수신 및 Echo 송신 파형.*
+
+`baud_sel`을 `0 → 1 → 2`로 변경하며 9,600 / 19,200 / 115,200 bps에서 RX 이후 TX가 이어지는 Echo 동작을 확인함. 수신 데이터는 `0x12 → 0x34 → 0x56 → 0x78` 순서이며, `rx_done`, 수신 데이터 레지스터, `tx_start`, `tx_busy`를 함께 관찰함.
+
+![UART RXDATA 읽기와 TXDATA 쓰기의 APB 파형](docs/images/uart_apb_waveform.png)
+
+*9,600 bps에서 데이터 `0x41`의 RXDATA 읽기와 TXDATA 쓰기 동작.*
+
+| 구간 | APB 접근 및 상태 변화 |
+| --- | --- |
+| 수신 완료 | `rx_data_reg = 0x41`, RX valid 설정 시 `UART_STATUS = 0x8000_0000` |
+| RXDATA 읽기 | `PADDR = 0x2000_400C`, `PSEL = 1`, `PENABLE = 1`, `PWRITE = 0` |
+| TXDATA 쓰기 | `PADDR = 0x2000_4008`, `PWDATA[7:0] = 0x41`, `PWRITE = 1`, `PSEL = PENABLE = 1` |
+| 송신 시작 | `tx_start` 발생 후 `tx_busy = 1`; RX valid가 해제된 상태에서는 `UART_STATUS = 0x0000_0001` |
+
+`UART_STATUS[31]`은 수신 완료 후 유지되는 `rx_valid_reg` 값임. RXDATA 읽기 또는 CPU의 `interrupt_clear`로 해제되며, TXDATA는 `TX busy = 0`일 때만 송신 요청을 수락하므로 소프트웨어에서 상태를 확인한 뒤 기록해야 함.
+
+RX 데이터는 1바이트 레지스터에 저장되며 현재 APB UART 경로에 RX FIFO는 연결되어 있지 않음. 기존 데이터를 읽기 전에 다음 바이트가 수신되면 최신 값으로 덮어써짐.
 
 ### UART Echo Back
 
@@ -239,7 +332,40 @@ PC에서 UART로 입력한 데이터를 MCU가 수신한 후 동일한 데이터
 0041 -> 4142 -> 4243
 ```
 
-### UART Interrupt
+### UART Interrupt Branch / Return Waveform
+
+![UART 수신 인터럽트 진입, ISR의 RAM 저장 및 원래 PC로 복귀하는 파형](docs/images/uart_interrupt_waveform.png)
+
+*메인 루프 실행 중 UART 데이터 `0x43` 수신에 따른 ISR 진입, RAM 저장 및 복귀 파형.*
+
+검증 프로그램은 메인 루프에서 `RAM[0]`을 1씩 증가시키고, ISR에서 UART 수신값을 `RAM[2]`에 저장하도록 구성함. 인터럽트 처리 순서는 다음과 같음.
+
+1. UART 수신 완료 후 `rx_done`이 발생하고 `interrupt_signal`이 활성화됨.
+2. CPU가 `IF`에서 요청을 수락하고 `INT` 처리 중 복귀 주소 `0x0000_000C`를 `x26`에 저장함.
+3. ISR 진입 시 `interrupt_clear`로 pending을 해제하고 PC를 ISR 시작 주소 `0x0000_0040`으로 변경함.
+4. ISR이 `UART_RXDATA`를 읽어 수신값 `0x43`을 `RAM[2]`(`0x1000_0008`)에 기록함.
+5. `JALR`로 `x26`에 저장한 `0x0000_000C`로 복귀함. 이후 메인 루프의 `JAL`을 실행하여 PC가 `0x0000_0000`으로 돌아감.
+
+```asm
+# 검증 프로그램의 핵심 흐름 (레지스터 초기화 코드는 생략)
+# x27 = 0x1000_0000, x31 = 0x2000_400C
+# main_loop: 0x0000_0000
+main_loop:
+    lw   x1, 0(x27)
+    addi x1, x1, 1
+    sw   x1, 0(x27)
+    jal  x0, main_loop
+
+# uart_isr: 0x0000_0040
+uart_isr:
+    lw   x7, 0(x31)
+    sw   x7, 8(x27)
+    jalr x0, 0(x26)
+```
+
+예제는 메인 루프와 ISR의 핵심 명령어를 나타냄. 실행 시 `x27`, `x31`을 초기화하고 ISR을 `0x0000_0040`에 배치해야 함. 인터럽트는 고정 벡터와 `x26`을 사용하는 custom 구조이며 CSR 기반 trap 처리는 구현하지 않음. ISR 재진입을 막는 마스크가 없어 처리 중 추가 수신 시 `x26`이 덮어써질 수 있으며, ISR에서 사용하는 레지스터의 보존도 소프트웨어에서 관리해야 함.
+
+### UART Interrupt Board Test
 
 메인 프로그램에서 보드 LED가 순차적으로 이동하는 반복 동작을 수행함. UART 데이터 수신 시 CPU가 인터럽트 벡터 `0x0000_0040`으로 분기하여 ISR을 실행함.
 
@@ -264,7 +390,10 @@ ISR에서는 LED 점등 동작을 3회 수행함. ISR 완료 후 `x26`에 저장
 ```text
 RV32I_MCU/
 ├── README.md
+├── riscv1.png
 ├── rv32i_diagram.png
+├── docs/
+│   └── images/                 # 수행시간 비교 및 RAM/UART 검증 파형
 ├── single_cycle/
 │   ├── constrs_1/
 │   │   └── imports/FPGA_1/
@@ -324,6 +453,8 @@ fe010113
 ```
 
 ROM 깊이는 64 word이며, 최대 256 byte의 프로그램을 저장할 수 있음. 프로그램 변경 사항은 synthesis 및 bitstream 생성 과정에서 명령어 ROM에 반영됨.
+
+기본 ROM에는 RAM·GPO·GPI 접근 프로그램이 포함됨. UART Echo 및 인터럽트 테스트에는 해당 테스트용 ROM을 별도로 적재해야 하며, 테스트별 ROM과 testbench 전체는 저장소에 포함되어 있지 않음.
 
 ## Development Environment
 
